@@ -14,7 +14,7 @@ export default {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.aruzaev.pock",
-      googleServicesFile: process.env.GOOGLE_SERVICES_INFO_PLIST,
+      googleServicesFile: process.env.GOOGLE_SERVICE_INFO_PLIST,
     },
     android: {
       adaptiveIcon: {
