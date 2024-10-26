@@ -6,7 +6,7 @@ import {
 } from "@react-native-google-signin/google-signin";
 import { useEffect, useState } from "react";
 
-export default function App() {
+export default function Signin({ navigation }) {
   const [error, setError] = useState();
   const [userInfo, setUserInfo] = useState();
 
@@ -39,6 +39,12 @@ export default function App() {
       <Text>Hello World</Text>
       <Text>{JSON.stringify(error)}</Text>
       {userInfo && <Text>{JSON.stringify(userInfo)}</Text>}
+      <Button
+        title="Home"
+        onPress={() => {
+          navigation.navigate("Home");
+        }}
+      />
       {userInfo ? ( // Fixed typo here
         <Button title="logout" onPress={logout} />
       ) : (
