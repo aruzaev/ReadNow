@@ -4,11 +4,12 @@ import {
   GoogleSignin,
   GoogleSigninButton,
 } from "@react-native-google-signin/google-signin";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
+import { UserContext } from "../UserContext"; // Import UserContext
 
 export default function Signin({ navigation }) {
   const [error, setError] = useState();
-  const [userInfo, setUserInfo] = useState();
+  const { user, setUser } = useContext(UserContext); // Use context to set the user
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -21,37 +22,25 @@ export default function Signin({ navigation }) {
     try {
       await GoogleSignin.hasPlayServices();
       const user = await GoogleSignin.signIn();
-      setUserInfo(user);
+      setUser(user); // Set user in context, which will trigger the navigation
       setError();
     } catch (error) {
       setError(error);
     }
   };
 
-  const logout = () => {
-    setUserInfo();
-    GoogleSignin.revokeAccess();
-    GoogleSignin.signOut();
-  };
-
   return (
     <View style={styles.container}>
       <Text>Hello World</Text>
       <Text>{JSON.stringify(error)}</Text>
-      {userInfo && <Text>{JSON.stringify(userInfo)}</Text>}
-      <Button
-        title="Home"
-        onPress={() => {
-          navigation.navigate("Home");
-        }}
-      />
-      {userInfo ? ( // Fixed typo here
-        <Button title="logout" onPress={logout} />
+      {user && <Text>{JSON.stringify(user)}</Text>}
+      {user ? (
+        <Button title="Logout" onPress={logout} />
       ) : (
         <GoogleSigninButton
           size={GoogleSigninButton.Size.Standard}
           color={GoogleSigninButton.Color.Dark}
-          onPress={signin} // Fixed the missing closing bracket here
+          onPress={signin}
         />
       )}
       <StatusBar style="auto" />
