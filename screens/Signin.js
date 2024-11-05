@@ -9,7 +9,7 @@ import { UserContext } from "../UserContext"; // Import UserContext
 
 export default function Signin({ navigation }) {
   const [error, setError] = useState();
-  const { user, setUser } = useContext(UserContext); // Use context to set the user
+  const { user, login } = useContext(UserContext); // Use context to set the user
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -18,12 +18,10 @@ export default function Signin({ navigation }) {
     });
   }, []);
 
-  const signin = async () => {
+  const handleSignIn = async () => {
     try {
-      await GoogleSignin.hasPlayServices();
-      const user = await GoogleSignin.signIn();
-      setUser(user); // Set user in context, which will trigger the navigation
-      setError();
+      await login();
+      setError(null);
     } catch (error) {
       setError(error);
     }
@@ -40,7 +38,7 @@ export default function Signin({ navigation }) {
         <GoogleSigninButton
           size={GoogleSigninButton.Size.Standard}
           color={GoogleSigninButton.Color.Dark}
-          onPress={signin}
+          onPress={handleSignIn}
         />
       )}
       <StatusBar style="auto" />

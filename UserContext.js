@@ -6,6 +6,7 @@ export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [lastLogin, setLastLogin] = useState(null);
 
   useEffect(() => {
     const checkIfSignedIn = async () => {
@@ -14,6 +15,7 @@ export const UserProvider = ({ children }) => {
         const userInfo = GoogleSignin.getCurrentUser();
         if (userInfo) {
           setUser(userInfo);
+          setLastLogin(Date.now());
         } else {
           setUser(null);
         }
@@ -24,14 +26,27 @@ export const UserProvider = ({ children }) => {
     checkIfSignedIn();
   }, []);
 
+  const login = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const user = await GoogleSignin.signIn();
+      console.log("User Info:", user);
+      setUser(user);
+      setLastLogin(Date.now());
+    } catch (error) {
+      console.error("Login error:", error);
+    }
+  };
+
   const logout = async () => {
     setUser(null); // Clear user from context on logout
+    setLastLogin(null);
     await GoogleSignin.revokeAccess();
     await GoogleSignin.signOut();
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, logout }}>
+    <UserContext.Provider value={{ user, setUser, login, logout, lastLogin }}>
       {children}
     </UserContext.Provider>
   );
