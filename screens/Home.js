@@ -1,14 +1,16 @@
 import React, { useContext, useState } from "react";
 import { View, Text, Button, StyleSheet } from "react-native";
 import { UserContext } from "../UserContext";
-import { NYT_API_KEY, OPEN_LIBRARY_API_BASE_URL } from "@env";
+// import Carousel from "react-native-snap-carousel";
 
 const Home = () => {
   const { user, lastLogin, logout } = useContext(UserContext);
+  const [weeklyLists, setWeeklyLists] = useState([]);
+  const [monthlyLists, setMonthlyLists] = useState([]);
+  const [popularCategories, setPopularCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const getBestSellerLists = async () => {
-    const [lists, setLists] = useState([]);
-
     const nytAPI = process.env.NYT_API_KEY;
     const url = `https://api.nytimes.com/svc/books/v3/lists/names.json?api-key=${nytAPI}`;
 
@@ -21,16 +23,20 @@ const Home = () => {
         oldestPublished: list.oldest_published_date,
         newestPublished: list.newest_published_date,
       }));
+
+      const weeklyLists = lists.filter((list) => list.updated === "WEEKLY");
+      const monthlyLists = lists.filter((list) => list.updated === "MONTHLY");
+
+      // top 20
+      setWeeklyLists(weeklyLists.slice(0, 20));
+      setMonthlyLists(monthlyLists.slice(0, 20));
+
       console.log(lists);
       return lists;
     } catch (error) {
       console.error("Error fetching best seller list:", error);
       return [];
     }
-  };
-
-  const filterListsByFrequency = (lists, frequency) => {
-    return lists.filter((list) => list.frequency === frequency.toUpperCase());
   };
 
   const userName = user?.data?.user?.name || "User";
