@@ -1,5 +1,8 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
+import * as firebase from "firebase";
+
+const firebaseConfig = {};
 
 const ReadingList = () => {
   return (

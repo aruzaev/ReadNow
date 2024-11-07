@@ -6,17 +6,28 @@ import { createDrawerNavigator } from "@react-navigation/drawer";
 import Signin from "./screens/Signin";
 import Home from "./screens/Home";
 import { UserContext, UserProvider } from "./UserContext";
+import { useContext } from "react";
 import CustomDrawer from "./CustomDrawer";
 import ReadingList from "./screens/ReadingList";
+import Account from "./screens/Account";
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
 
 const DrawerNavigator = () => {
+  const { user } = useContext(UserContext);
+  const username = user?.data?.user?.name || "Account";
   return (
     <Drawer.Navigator drawerContent={(props) => <CustomDrawer {...props} />}>
       <Drawer.Screen name="Home" component={Home} />
       <Drawer.Screen name="Reading List" component={ReadingList} />
+      <Drawer.Screen
+        name="Account"
+        component={Account}
+        options={{
+          drawerLabel: username,
+        }}
+      />
     </Drawer.Navigator>
   );
 };

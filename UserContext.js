@@ -11,7 +11,6 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const checkIfSignedIn = async () => {
       try {
-        // Use getCurrentUser to check if user is already signed in
         const userInfo = GoogleSignin.getCurrentUser();
         if (userInfo) {
           setUser(userInfo);
@@ -31,6 +30,8 @@ export const UserProvider = ({ children }) => {
       await GoogleSignin.hasPlayServices();
       const user = await GoogleSignin.signIn();
       console.log("User Info:", user);
+      console.log("Profile picture url: ", user.data.user.photo);
+
       setUser(user);
       setLastLogin(Date.now());
     } catch (error) {
