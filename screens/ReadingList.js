@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import * as firebase from "firebase";
+// import * as firebase from "firebase";
 
 const firebaseConfig = {};
 
