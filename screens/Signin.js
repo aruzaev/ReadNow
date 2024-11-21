@@ -5,11 +5,11 @@ import {
   GoogleSigninButton,
 } from "@react-native-google-signin/google-signin";
 import { useContext, useEffect, useState } from "react";
-import { UserContext } from "../UserContext"; // Import UserContext
+import { UserContext } from "../UserContext";
 
 export default function Signin({ navigation }) {
   const [error, setError] = useState();
-  const { user, login } = useContext(UserContext); // Use context to set the user
+  const { user, login } = useContext(UserContext);
 
   useEffect(() => {
     GoogleSignin.configure({
@@ -29,19 +29,25 @@ export default function Signin({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text>Hello World</Text>
-      <Text>{JSON.stringify(error)}</Text>
-      {user && <Text>{JSON.stringify(user)}</Text>}
+      <Text style={styles.title}>pock</Text>
+      <Text style={styles.subtitle}>Sign in to continue</Text>
+      {error && <Text style={styles.error}>{error.message}</Text>}
       {user ? (
-        <Button title="Logout" onPress={logout} />
+        <>
+          <Text style={styles.userInfo}>
+            Logged in as: {JSON.stringify(user)}
+          </Text>
+          <Button title="Logout" onPress={logout} color="#FF6D6D" />
+        </>
       ) : (
         <GoogleSigninButton
-          size={GoogleSigninButton.Size.Standard}
+          size={GoogleSigninButton.Size.Wide}
           color={GoogleSigninButton.Color.Dark}
           onPress={handleSignIn}
+          style={styles.googleButton}
         />
       )}
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </View>
   );
 }
@@ -49,8 +55,36 @@ export default function Signin({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#121212",
     alignItems: "center",
     justifyContent: "center",
+    padding: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#B3B3B3",
+    marginBottom: 30,
+  },
+  error: {
+    fontSize: 14,
+    color: "#FF6D6D",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  userInfo: {
+    fontSize: 16,
+    color: "#B3B3B3",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  googleButton: {
+    width: 192,
+    height: 48,
   },
 });

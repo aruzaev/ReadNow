@@ -1,164 +1,145 @@
 import React, { useContext, useState, useEffect } from "react";
-import { View, Text, Button, StyleSheet, Image } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Image,
+  TouchableOpacity,
+} from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { UserContext } from "../UserContext";
 
-const Home = () => {
+const Home = ({ navigation }) => {
   const { user, lastLogin, logout } = useContext(UserContext);
-  const [weeklyLists, setWeeklyLists] = useState([]);
-  const [monthlyLists, setMonthlyLists] = useState([]);
-  const [popularCategories, setPopularCategories] = useState([]);
+  const [recentBooks, setRecentBooks] = useState([]);
+  const [weeklyBooks, setWeeklyBooks] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const nytAPI = process.env.NYT_API_KEY;
-  const openLibraryBaseUrl = process.env.OPEN_LIBRARY_API_BASE_URL;
-
-  const getBestSellerLists = async () => {
-    const url = `https://api.nytimes.com/svc/books/v3/lists/names.json?api-key=${nytAPI}`;
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      const lists = data.results.map((list) => ({
-        name: list.display_name,
-        encodedName: list.list_name_encoded,
-        updated: list.updated,
-        oldestPublished: list.oldest_published_date,
-        newestPublished: list.newest_published_date,
-      }));
-
-      const weekly = lists.filter((list) => list.updated === "WEEKLY");
-      const monthly = lists.filter((list) => list.updated === "MONTHLY");
-
-      setWeeklyLists(weekly.slice(0, 20));
-      setMonthlyLists(monthly.slice(0, 20));
-    } catch (error) {
-      console.error("Error fetching best seller lists:", error);
-    }
-  };
-
-  const fetchBooksForList = async (listNameEncoded) => {
-    const url = `https://api.nytimes.com/svc/books/v3/lists/current/${listNameEncoded}.json?api-key=${nytAPI}`;
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      return data.results.books.map((book) => ({
-        title: book.title,
-        author: book.author,
-        isbn: book.primary_isbn13,
-      }));
-    } catch (error) {
-      console.error(`Error fetching books for ${listNameEncoded}:`, error);
-      return [];
-    }
-  };
-
-  const fetchCovers = async (books) => {
-    return await Promise.all(
-      books.map(async (book) => {
-        const url = `${openLibraryBaseUrl}/search.json?title=${encodeURIComponent(
-          book.title
-        )}&author=${encodeURIComponent(book.author)}`;
-        try {
-          const response = await fetch(url);
-          const data = await response.json();
-          const firstResult = data.docs[0];
-          return {
-            ...book,
-            coverUrl: firstResult
-              ? `https://covers.openlibrary.org/b/id/${firstResult.cover_i}-L.jpg`
-              : "https://via.placeholder.com/150x200?text=No+Cover",
-          };
-        } catch (error) {
-          console.error(`Error fetching cover for ${book.title}:`, error);
-          return { ...book, coverUrl: null };
-        }
-      })
-    );
-  };
-
-  const fetchPopularCategories = async () => {
-    const popularCategories = ["hardcover-fiction", "hardcover-nonfiction"];
-    try {
-      const categories = await Promise.all(
-        popularCategories.map(async (listNameEncoded) => {
-          const books = await fetchBooksForList(listNameEncoded);
-          return await fetchCovers(books);
-        })
-      );
-      setPopularCategories(categories);
-    } catch (error) {
-      console.error("Error fetching popular categories:", error);
-    }
-  };
-
   useEffect(() => {
+    const fetchRecentBooks = async () => {
+      const books = [
+        {
+          title: "Book 1",
+          author: "Author 1",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+        {
+          title: "Book 2",
+          author: "Author 2",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+        {
+          title: "Book 3",
+          author: "Author 3",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+        {
+          title: "Book 4",
+          author: "Author 4",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+        {
+          title: "Book 5",
+          author: "Author 5",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+      ];
+      setRecentBooks(books);
+    };
+
+    const fetchWeeklyBooks = async () => {
+      const books = [
+        {
+          title: "Weekly Book 1",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+        {
+          title: "Weekly Book 2",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+        {
+          title: "Weekly Book 3",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+        {
+          title: "Weekly Book 4",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+        {
+          title: "Weekly Book 5",
+          coverUrl: "https://via.placeholder.com/150x200",
+        },
+      ];
+      setWeeklyBooks(books);
+    };
+
     const fetchData = async () => {
       setLoading(true);
-      await getBestSellerLists();
-      await fetchPopularCategories();
+      await fetchRecentBooks();
+      await fetchWeeklyBooks();
       setLoading(false);
     };
 
     fetchData();
   }, []);
 
-  const renderCarousel = (books) => (
-    <Carousel
-      width={400}
-      height={250}
-      data={books}
-      renderItem={({ item }) => (
-        <View style={styles.carouselItem}>
-          <Image source={{ uri: item.coverUrl }} style={styles.bookCover} />
-          <Text style={styles.bookTitle}>{item.title}</Text>
-        </View>
-      )}
-      loop={true}
-    />
+  const renderRecentBooks = ({ item }) => (
+    <View style={styles.bookItem}>
+      <Image source={{ uri: item.coverUrl }} style={styles.bookCover} />
+      <Text style={styles.bookTitle}>{item.title}</Text>
+    </View>
   );
-
-  const userName = user?.data?.user?.name || "User";
-  const formattedLastLogin = lastLogin
-    ? new Date(lastLogin).toLocaleString()
-    : "No login data";
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text>Loading...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text>Welcome, {userName}</Text>
-      <Text>Last Login: {formattedLastLogin}</Text>
-      <Button title="Sign Out" onPress={logout} />
+      <Text style={styles.greeting}>
+        Welcome, {user?.data?.user?.name || "User"}
+      </Text>
+      <Text style={styles.lastLogin}>
+        Last Login: {lastLogin ? new Date(lastLogin).toLocaleString() : "N/A"}
+      </Text>
+      <Text style={styles.logout} onPress={logout}>
+        Sign Out
+      </Text>
 
-      <Text style={styles.sectionTitle}>Best Sellers (Weekly)</Text>
-      {weeklyLists.map((list, index) => (
-        <View key={index}>
-          <Text style={styles.listTitle}>{list.name}</Text>
-          {renderCarousel(list.books || [])}
-        </View>
-      ))}
+      <Text style={styles.sectionTitle}>Recently Opened Books</Text>
+      <FlatList
+        data={recentBooks}
+        renderItem={renderRecentBooks}
+        keyExtractor={(item, index) => index.toString()}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+      />
 
-      <Text style={styles.sectionTitle}>Best Sellers (Monthly)</Text>
-      {monthlyLists.map((list, index) => (
-        <View key={index}>
-          <Text style={styles.listTitle}>{list.name}</Text>
-          {renderCarousel(list.books || [])}
-        </View>
-      ))}
+      <Text style={styles.sectionTitle}>Weekly Top Books</Text>
+      <Carousel
+        width={400}
+        height={250}
+        data={weeklyBooks}
+        renderItem={({ item }) => (
+          <View style={styles.carouselItem}>
+            <Image source={{ uri: item.coverUrl }} style={styles.bookCover} />
+            <Text style={styles.bookTitle}>{item.title}</Text>
+          </View>
+        )}
+        loop={true}
+      />
 
-      <Text style={styles.sectionTitle}>Popular Categories</Text>
-      {popularCategories.map((category, index) => (
-        <View key={index}>
-          <Text style={styles.listTitle}>Category {index + 1}</Text>
-          {renderCarousel(category)}
-        </View>
-      ))}
+      <TouchableOpacity
+        style={styles.readingListLink}
+        onPress={() => navigation.navigate("Reading List")}
+      >
+        <Text style={styles.readingListText}>Go to My Reading List</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -166,29 +147,67 @@ const Home = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#121212",
     padding: 20,
+  },
+  greeting: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+    marginBottom: 10,
+  },
+  lastLogin: {
+    fontSize: 14,
+    color: "#BBBBBB",
+    marginBottom: 20,
+  },
+  logout: {
+    fontSize: 16,
+    color: "#FF6D6D",
+    marginBottom: 20,
+    textDecorationLine: "underline",
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    marginTop: 20,
+    color: "#FFFFFF",
+    marginVertical: 20,
   },
-  listTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginVertical: 10,
+  bookItem: {
+    alignItems: "center",
+    marginRight: 15,
+  },
+  bookCover: {
+    width: 100,
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  bookTitle: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    textAlign: "center",
   },
   carouselItem: {
     alignItems: "center",
   },
-  bookCover: {
-    width: 150,
-    height: 200,
-    marginBottom: 10,
-  },
-  bookTitle: {
-    fontSize: 14,
+  loadingText: {
+    fontSize: 18,
+    color: "#FFFFFF",
     textAlign: "center",
+  },
+  readingListLink: {
+    marginTop: 30,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#1E90FF",
+    borderRadius: 8,
+    alignSelf: "center",
+  },
+  readingListText: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    fontWeight: "bold",
   },
 });
 

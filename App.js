@@ -1,12 +1,10 @@
 import * as React from "react";
-import { View, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import Signin from "./screens/Signin";
 import Home from "./screens/Home";
 import { UserContext, UserProvider } from "./UserContext";
-import { useContext } from "react";
 import CustomDrawer from "./CustomDrawer";
 import ReadingList from "./screens/ReadingList";
 import Account from "./screens/Account";
@@ -15,10 +13,22 @@ const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
 
 const DrawerNavigator = () => {
-  const { user } = useContext(UserContext);
+  const { user } = React.useContext(UserContext);
   const username = user?.data?.user?.name || "Account";
+
   return (
-    <Drawer.Navigator drawerContent={(props) => <CustomDrawer {...props} />}>
+    <Drawer.Navigator
+      drawerContent={(props) => <CustomDrawer {...props} />}
+      screenOptions={{
+        drawerStyle: {
+          backgroundColor: "#121212",
+        },
+        drawerActiveTintColor: "#FFFFFF",
+        drawerInactiveTintColor: "#BBBBBB",
+        headerStyle: { backgroundColor: "#121212" },
+        headerTintColor: "#FFFFFF",
+      }}
+    >
       <Drawer.Screen name="Home" component={Home} />
       <Drawer.Screen name="Reading List" component={ReadingList} />
       <Drawer.Screen
@@ -40,6 +50,10 @@ const App = () => {
           {({ user }) => (
             <Stack.Navigator
               initialRouteName={user ? "DrawerNavigator" : "SignIn"}
+              screenOptions={{
+                headerStyle: { backgroundColor: "#121212" },
+                headerTintColor: "#FFFFFF",
+              }}
             >
               {!user ? (
                 <Stack.Screen name="SignIn" component={Signin} />
