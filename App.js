@@ -8,6 +8,7 @@ import { UserContext, UserProvider } from "./UserContext";
 import CustomDrawer from "./CustomDrawer";
 import ReadingList from "./screens/ReadingList";
 import Account from "./screens/Account";
+import Upload from "./screens/Upload";
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -30,6 +31,7 @@ const DrawerNavigator = () => {
       }}
     >
       <Drawer.Screen name="Home" component={Home} />
+      <Drawer.Screen name="Upload Files" component={Upload} />
       <Drawer.Screen name="Reading List" component={ReadingList} />
       <Drawer.Screen
         name="Account"
