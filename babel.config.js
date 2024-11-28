@@ -7,7 +7,7 @@ module.exports = function (api) {
         "module:react-native-dotenv",
         {
           moduleName: "@env", // The alias for your environment variables
-          path: ".env", // Path to your .env file
+          path: ".env",
           safe: false,
           allowUndefined: true,
         },

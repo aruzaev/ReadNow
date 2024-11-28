@@ -9,6 +9,8 @@ import CustomDrawer from "./CustomDrawer";
 import ReadingList from "./screens/ReadingList";
 import Account from "./screens/Account";
 import Upload from "./screens/Upload";
+import TestDocumentPicker from "./screens/TestDocumentPicker";
+import { View, ActivityIndicator, Text } from "react-native";
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -32,6 +34,7 @@ const DrawerNavigator = () => {
     >
       <Drawer.Screen name="Home" component={Home} />
       <Drawer.Screen name="Upload Files" component={Upload} />
+      <Drawer.Screen name="Testing" component={TestDocumentPicker} />
       <Drawer.Screen name="Reading List" component={ReadingList} />
       <Drawer.Screen
         name="Account"
@@ -49,25 +52,43 @@ const App = () => {
     <UserProvider>
       <NavigationContainer>
         <UserContext.Consumer>
-          {({ user }) => (
-            <Stack.Navigator
-              initialRouteName={user ? "DrawerNavigator" : "SignIn"}
-              screenOptions={{
-                headerStyle: { backgroundColor: "#121212" },
-                headerTintColor: "#FFFFFF",
-              }}
-            >
-              {!user ? (
-                <Stack.Screen name="SignIn" component={Signin} />
-              ) : (
-                <Stack.Screen
-                  name="DrawerNavigator"
-                  component={DrawerNavigator}
-                  options={{ headerShown: false }}
-                />
-              )}
-            </Stack.Navigator>
-          )}
+          {({ user, loading }) => {
+            if (loading) {
+              return (
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <ActivityIndicator size="large" color="#007bff" />
+                  <Text style={{ marginTop: 10, color: "#888" }}>
+                    Loading...
+                  </Text>
+                </View>
+              );
+            }
+            return (
+              <Stack.Navigator
+                initialRouteName={user ? "DrawerNavigator" : "SignIn"}
+                screenOptions={{
+                  headerStyle: { backgroundColor: "#121212" },
+                  headerTintColor: "#FFFFFF",
+                }}
+              >
+                {!user ? (
+                  <Stack.Screen name="SignIn" component={Signin} />
+                ) : (
+                  <Stack.Screen
+                    name="DrawerNavigator"
+                    component={DrawerNavigator}
+                    options={{ headerShown: false }}
+                  />
+                )}
+              </Stack.Navigator>
+            );
+          }}
         </UserContext.Consumer>
       </NavigationContainer>
     </UserProvider>
