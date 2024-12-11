@@ -63,6 +63,8 @@ const ReadingList = ({ navigation }) => {
         ...doc.data(),
       }));
 
+      console.log("Fetched books:", newBooks);
+
       setBooks((prevBooks) => [...prevBooks, ...newBooks]);
 
       if (querySnapshot.docs.length < PAGE_SIZE) {
@@ -90,7 +92,10 @@ const ReadingList = ({ navigation }) => {
   const renderBookItem = ({ item }) => (
     <TouchableOpacity
       style={styles.bookItem}
-      onPress={() => navigation.navigate("Reader", { book: item })}
+      onPress={() => {
+        console.log("Navigating with book:", item);
+        navigation.navigate("Reader", { book: item });
+      }}
     >
       <Image
         source={{

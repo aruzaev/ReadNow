@@ -10,8 +10,9 @@ import ReadingList from "./screens/ReadingList";
 import Account from "./screens/Account";
 import Upload from "./screens/Upload";
 import TestDocumentPicker from "./screens/TestDocumentPicker";
+import ReaderScreen from "./screens/Reader";
 import { View, ActivityIndicator, Text } from "react-native";
-import Reader from "./screens/Reader";
+import { ReaderProvider } from "@epubjs-react-native/core";
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -51,48 +52,54 @@ const DrawerNavigator = () => {
 const App = () => {
   return (
     <UserProvider>
-      <NavigationContainer>
-        <UserContext.Consumer>
-          {({ user, loading }) => {
-            if (loading) {
+      <ReaderProvider>
+        <NavigationContainer>
+          <UserContext.Consumer>
+            {({ user, loading }) => {
+              if (loading) {
+                return (
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <ActivityIndicator size="large" color="#007bff" />
+                    <Text style={{ marginTop: 10, color: "#888" }}>
+                      Loading...
+                    </Text>
+                  </View>
+                );
+              }
               return (
-                <View
-                  style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    alignItems: "center",
+                <Stack.Navigator
+                  initialRouteName={user ? "DrawerNavigator" : "SignIn"}
+                  screenOptions={{
+                    headerStyle: { backgroundColor: "#121212" },
+                    headerTintColor: "#FFFFFF",
                   }}
                 >
-                  <ActivityIndicator size="large" color="#007bff" />
-                  <Text style={{ marginTop: 10, color: "#888" }}>
-                    Loading...
-                  </Text>
-                </View>
-              );
-            }
-            return (
-              <Stack.Navigator
-                initialRouteName={user ? "DrawerNavigator" : "SignIn"}
-                screenOptions={{
-                  headerStyle: { backgroundColor: "#121212" },
-                  headerTintColor: "#FFFFFF",
-                }}
-              >
-                {!user ? (
-                  <Stack.Screen name="SignIn" component={Signin} />
-                ) : (
+                  {!user ? (
+                    <Stack.Screen name="SignIn" component={Signin} />
+                  ) : (
+                    <Stack.Screen
+                      name="DrawerNavigator"
+                      component={DrawerNavigator}
+                      options={{ headerShown: false }}
+                    />
+                  )}
                   <Stack.Screen
-                    name="DrawerNavigator"
-                    component={DrawerNavigator}
-                    options={{ headerShown: false }}
+                    name="Reader"
+                    component={ReaderScreen}
+                    options={{ title: "Reader" }}
                   />
-                )}
-                <Stack.Screen name="Reader" component={Reader} />
-              </Stack.Navigator>
-            );
-          }}
-        </UserContext.Consumer>
-      </NavigationContainer>
+                </Stack.Navigator>
+              );
+            }}
+          </UserContext.Consumer>
+        </NavigationContainer>
+      </ReaderProvider>
     </UserProvider>
   );
 };

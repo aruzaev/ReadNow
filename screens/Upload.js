@@ -78,6 +78,7 @@ const Upload = () => {
     }
 
     const userID = currentUser.uid;
+    const filePath = `users/${userID}/${file.name}`;
 
     if (!file) {
       Alert.alert("No file selected", "Please select a file to upload");
@@ -88,7 +89,7 @@ const Upload = () => {
     setProgress(0);
 
     // creating a pointer to the file we want to work on in the cloud
-    const storageRef = ref(storage, `users/${userID}/${file.name}`);
+    const storageRef = ref(storage, filePath);
     // converting file object (just has the metadata and reference that we got from DocumentPicker)
     // to blob, which can actually hold binary data (the actual file)
     const fileBlob = await fetch(file.uri).then((res) => res.blob());
@@ -119,6 +120,7 @@ const Upload = () => {
 
           await addDoc(collection(db, `users/${userID}/uploads`), {
             name: file.name,
+            path: filePath,
             uri: downloadURL,
             uploadedAt: new Date(),
             type: file.mimeType,
