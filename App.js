@@ -11,6 +11,7 @@ import Account from "./screens/Account";
 import Upload from "./screens/Upload";
 import TestDocumentPicker from "./screens/TestDocumentPicker";
 import { View, ActivityIndicator, Text } from "react-native";
+import Reader from "./screens/Reader";
 
 const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -86,6 +87,7 @@ const App = () => {
                     options={{ headerShown: false }}
                   />
                 )}
+                <Stack.Screen name="Reader" component={Reader} />
               </Stack.Navigator>
             );
           }}

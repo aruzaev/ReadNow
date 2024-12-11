@@ -8,52 +8,107 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
+import { db, auth } from "../firebase/firebaseConfig";
+import {
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+} from "firebase/firestore";
 
 const PAGE_SIZE = 10;
 
-const ReadingList = () => {
+const ReadingList = ({ navigation }) => {
   const [books, setBooks] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [lastVisible, setLastVisible] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchBooks = async (page) => {
+  const fetchBooks = async () => {
+    if (loading || !hasMore) return;
     setLoading(true);
+
     try {
-      const newBooks = Array.from({ length: PAGE_SIZE }, (_, index) => ({
-        id: `book-${page * PAGE_SIZE + index}`,
-        title: `Book Title ${page * PAGE_SIZE + index}`,
-        author: `Author ${page * PAGE_SIZE + index}`,
-        coverUrl: "https://via.placeholder.com/150x200?text=Book+Cover",
+      const currentUser = auth.currentUser;
+
+      if (!currentUser) {
+        console.error("No user is logged in");
+        setLoading(false);
+        return;
+      }
+
+      const userID = currentUser.uid;
+      const bookCollection = collection(db, `users/${userID}/uploads`);
+      let bookQuery = query(
+        bookCollection,
+        orderBy("uploadedAt", "desc"),
+        limit(PAGE_SIZE)
+      );
+
+      if (lastVisible) {
+        bookQuery = query(
+          bookCollection,
+          orderBy("uploadedAt", "desc"),
+          startAfter(lastVisible),
+          limit(PAGE_SIZE)
+        );
+      }
+
+      const querySnapshot = await getDocs(bookQuery);
+
+      const newBooks = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
       }));
+
       setBooks((prevBooks) => [...prevBooks, ...newBooks]);
-      if (newBooks.length < PAGE_SIZE) {
+
+      if (querySnapshot.docs.length < PAGE_SIZE) {
         setHasMore(false);
+      } else {
+        setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
       }
     } catch (error) {
       console.error("Error fetching books:", error);
     }
+
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchBooks(currentPage);
-  }, [currentPage]);
+    fetchBooks();
+  }, []);
 
   const loadMoreBooks = () => {
     if (hasMore && !loading) {
-      setCurrentPage((prevPage) => prevPage + 1);
+      fetchBooks();
     }
   };
 
   const renderBookItem = ({ item }) => (
-    <View style={styles.bookItem}>
-      <Image source={{ uri: item.coverUrl }} style={styles.bookCover} />
+    <TouchableOpacity
+      style={styles.bookItem}
+      onPress={() => navigation.navigate("Reader", { book: item })}
+    >
+      <Image
+        source={{
+          uri:
+            item.coverUrl ||
+            "https://via.placeholder.com/150x200?text=No+Cover",
+        }}
+        style={styles.bookCover}
+      />
       <View style={styles.bookInfo}>
-        <Text style={styles.bookTitle}>{item.title}</Text>
-        <Text style={styles.bookAuthor}>{item.author}</Text>
+        <Text style={styles.bookTitle}>
+          {item.metadata?.title || item.name || "Untitled"}
+        </Text>
+        <Text style={styles.bookAuthor}>
+          {item.metadata?.author || "Unknown Author"}
+        </Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (

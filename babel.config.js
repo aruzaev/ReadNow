@@ -1,12 +1,12 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: ["babel-preset-expo"], // Or '@babel/preset-env' if not using Expo
+    presets: ["babel-preset-expo"],
     plugins: [
       [
         "module:react-native-dotenv",
         {
-          moduleName: "@env", // The alias for your environment variables
+          moduleName: "@env",
           path: ".env",
           safe: false,
           allowUndefined: true,
