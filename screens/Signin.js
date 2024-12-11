@@ -9,21 +9,30 @@ import { UserContext } from "../UserContext";
 
 export default function Signin({ navigation }) {
   const [error, setError] = useState();
-  const { user, login } = useContext(UserContext);
+  const { user, login, logout } = useContext(UserContext);
 
   useEffect(() => {
     GoogleSignin.configure({
       webClientId:
         "1082178052712-flcok3plqblmdcn4rehskfrqt9tmi7to.apps.googleusercontent.com",
     });
-  }, []);
+
+    if (user) {
+      console.log("User is signed in");
+      console.log("User ID:", user.uid || "No User ID available");
+    } else {
+      console.log("No user is signed in");
+    }
+  }, [user]);
 
   const handleSignIn = async () => {
     try {
       await login();
       setError(null);
+      console.log("Sign-in successful");
     } catch (error) {
       setError(error);
+      console.error("Sign-in error:", error);
     }
   };
 
@@ -35,7 +44,7 @@ export default function Signin({ navigation }) {
       {user ? (
         <>
           <Text style={styles.userInfo}>
-            Logged in as: {JSON.stringify(user)}
+            Logged in as: {user.displayName} ({user.uid})
           </Text>
           <Button title="Logout" onPress={logout} color="#FF6D6D" />
         </>

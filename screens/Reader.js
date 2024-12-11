@@ -1,29 +1,35 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
+  Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Reader, useReader } from "@epubjs-react-native/core";
 import { useFileSystem } from "@epubjs-react-native/expo-file-system";
+import { useNavigation } from "@react-navigation/native";
+import Icon from "react-native-vector-icons/Ionicons";
 
 const ReaderScreen = ({ route }) => {
   const { book } = route.params;
-  const readerRef = useRef(null); // Reference for Reader
-  const { goPrevious, goNext } = useReader(); // Access navigation methods
+  const readerRef = React.useRef(null);
+  const { goPrevious, goNext, addAnnotation } = useReader();
+  const navigation = useNavigation();
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [highlights, setHighlights] = useState([]);
 
   const bookUri = book.uri;
 
   if (!bookUri) {
     return (
-      <View style={styles.errorContainer}>
+      <SafeAreaView style={styles.errorContainer}>
         <Text style={styles.errorText}>
           Error: Book URI is missing or invalid.
         </Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -43,8 +49,45 @@ const ReaderScreen = ({ route }) => {
     }
   };
 
+  const handleHome = () => {
+    navigation.navigate("Reading List");
+  };
+
+  const handleTextSelected = (selection) => {
+    const { text, cfiRange } = selection;
+    if (text && cfiRange) {
+      Alert.alert(
+        "Highlight Text",
+        `Do you want to highlight: "${text}"?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Highlight",
+            onPress: () => {
+              const newHighlight = { cfiRange, text };
+              setHighlights([...highlights, newHighlight]);
+
+              // Add the highlight to the reader
+              if (addAnnotation) {
+                addAnnotation({
+                  cfiRange,
+                  data: { type: "highlight" },
+                  styles: { backgroundColor: "yellow" },
+                });
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Reader
         ref={readerRef}
         src={bookUri}
@@ -58,6 +101,7 @@ const ReaderScreen = ({ route }) => {
           setLoadingProgress(progress);
         }}
         onDisplayError={(err) => console.error("Error displaying book:", err)}
+        onSelected={(selection) => handleTextSelected(selection)}
         renderLoadingFileComponent={() => (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#FFFFFF" />
@@ -72,15 +116,18 @@ const ReaderScreen = ({ route }) => {
           </Text>
         </View>
       )}
-      <View style={styles.navigationContainer}>
-        <TouchableOpacity onPress={handlePrevious} style={styles.button}>
-          <Text style={styles.buttonText}>Previous</Text>
+      <View style={styles.bottomMenu}>
+        <TouchableOpacity onPress={handlePrevious} style={styles.iconButton}>
+          <Icon name="arrow-back" size={30} color="#FFFFFF" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={handleNext} style={styles.button}>
-          <Text style={styles.buttonText}>Next</Text>
+        <TouchableOpacity onPress={handleHome} style={styles.iconButton}>
+          <Icon name="home" size={30} color="#FFFFFF" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleNext} style={styles.iconButton}>
+          <Icon name="arrow-forward" size={30} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -121,22 +168,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 5,
   },
-  navigationContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  bottomMenu: {
     position: "absolute",
-    bottom: 10,
+    bottom: 0,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
     width: "100%",
-    paddingHorizontal: 20,
+    backgroundColor: "#1E1E1E",
+    paddingVertical: 10,
   },
-  button: {
-    backgroundColor: "#444",
+  iconButton: {
     padding: 10,
-    borderRadius: 5,
-  },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
   },
 });
 

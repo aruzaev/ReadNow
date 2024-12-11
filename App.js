@@ -35,8 +35,6 @@ const DrawerNavigator = () => {
       }}
     >
       <Drawer.Screen name="Home" component={Home} />
-      <Drawer.Screen name="Upload Files" component={Upload} />
-      <Drawer.Screen name="Testing" component={TestDocumentPicker} />
       <Drawer.Screen name="Reading List" component={ReadingList} />
       <Drawer.Screen
         name="Account"
@@ -92,7 +90,7 @@ const App = () => {
                   <Stack.Screen
                     name="Reader"
                     component={ReaderScreen}
-                    options={{ title: "Reader" }}
+                    options={{ headerShown: false }}
                   />
                 </Stack.Navigator>
               );

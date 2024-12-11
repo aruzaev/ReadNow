@@ -1,43 +1,23 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
-  Text,
-  StyleSheet,
-  Alert,
   TouchableOpacity,
   ActivityIndicator,
-  ProgressBarAndroid,
-  ProgressBarAndroidBase,
-  ProgressBarAndroidComponent,
+  Alert,
+  StyleSheet,
+  Text,
 } from "react-native";
+import Icon from "react-native-vector-icons/Ionicons";
 import * as DocumentPicker from "expo-document-picker";
 import { db, storage, auth } from "../firebase/firebaseConfig";
-import { collection, addDoc, setDoc } from "firebase/firestore";
-import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
-import { UserContext } from "../UserContext";
+import { collection, addDoc } from "firebase/firestore";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import ePub from "epubjs";
 
-// 108383805851025218741
-
-const Upload = () => {
+const Upload = ({ onUploadSuccess }) => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
-
-  const { user } = useContext(UserContext);
-  const currentUser = user || auth.currentUser;
-
-  if (!currentUser) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.error}>
-          You need to be logged in to upload files.
-        </Text>
-      </View>
-    );
-  }
-  const userID = currentUser.uid;
-  console.log("User context", userID);
 
   const handleFileSelect = async () => {
     try {
@@ -47,15 +27,20 @@ const Upload = () => {
 
       if (response.canceled) {
         setFile(null);
-      } else if (response.assets) {
+        return;
+      }
+
+      if (response.assets && response.assets.length > 0) {
         const selectedFile = response.assets[0];
         setFile(selectedFile);
-        console.log("Selected file details: ", selectedFile);
+        console.log("Selected file:", selectedFile);
       } else {
-        Alert.alert("Something unexpected happened...");
+        Alert.alert("Error", "No file selected or invalid file.");
+        setFile(null);
       }
     } catch (error) {
-      Alert.alert(`An error has occurred: ${error}`);
+      Alert.alert("Error selecting file", error.message);
+      setFile(null);
     }
   };
 
@@ -65,113 +50,216 @@ const Upload = () => {
       const metadata = await book.loaded.metadata;
       return metadata;
     } catch (error) {
-      console.error("Error getting the EPUB metadata", error);
+      console.error("Error fetching metadata:", error);
+      return null;
+    }
+  };
+
+  const getEpubCover = async (fileUri) => {
+    try {
+      const book = ePub(fileUri);
+      await book.ready;
+
+      // Method 1: Try getting cover from resources
+      try {
+        const cover = await book.loaded.cover;
+        if (cover) {
+          const coverUrl = await book.archive.createUrl(cover, {
+            base64: true,
+          });
+          return coverUrl;
+        }
+      } catch (e) {
+        console.log("Method 1 failed:", e);
+      }
+
+      // Method 2: Try getting cover from spine
+      try {
+        const spine = await book.loaded.spine;
+        const coverItem = spine.find(
+          (item) =>
+            item.href.toLowerCase().includes("cover") ||
+            item.id?.toLowerCase().includes("cover")
+        );
+
+        if (coverItem) {
+          const coverUrl = await book.archive.createUrl(coverItem.href, {
+            base64: true,
+          });
+          return coverUrl;
+        }
+      } catch (e) {
+        console.log("Method 2 failed:", e);
+      }
+
+      // Method 3: Try getting first image from resources
+      try {
+        const resources = await book.loaded.resources;
+        const firstImage = resources.find((item) =>
+          item.type?.includes("image")
+        );
+
+        if (firstImage) {
+          const coverUrl = await book.archive.createUrl(firstImage.href, {
+            base64: true,
+          });
+          return coverUrl;
+        }
+      } catch (e) {
+        console.log("Method 3 failed:", e);
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error with EPUB handling:", error);
+      return null;
+    }
+  };
+
+  const extractImagesFromEpub = async (fileUri) => {
+    try {
+      const book = ePub(fileUri);
+      await book.ready;
+
+      // Get all sections
+      const sections = await book.loaded.spine;
+
+      // Find first image in any section
+      for (let section of sections) {
+        try {
+          const content = await book.archive.getText(section.href);
+          const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
+          if (imgMatch && imgMatch[1]) {
+            const imageUrl = await book.archive.createUrl(imgMatch[1], {
+              base64: true,
+            });
+            return imageUrl;
+          }
+        } catch (e) {
+          console.log("Error processing section:", e);
+          continue;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error extracting images:", error);
       return null;
     }
   };
 
   const uploadFile = async () => {
+    if (!file) {
+      Alert.alert("No file selected", "Please select a file to upload.");
+      return;
+    }
+
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      Alert.alert("Error", "No one is logged in. Please log in and try again");
+      Alert.alert(
+        "Error",
+        "No user is logged in. Please log in and try again."
+      );
       return;
     }
 
     const userID = currentUser.uid;
     const filePath = `users/${userID}/${file.name}`;
 
-    if (!file) {
-      Alert.alert("No file selected", "Please select a file to upload");
-      return;
-    }
+    try {
+      const fileBlob = await fetch(file.uri).then((res) => res.blob());
+      setUploading(true);
+      setProgress(0);
 
-    setUploading(true);
-    setProgress(0);
+      const storageRef = ref(storage, filePath);
+      const uploadTask = uploadBytesResumable(storageRef, fileBlob);
 
-    // creating a pointer to the file we want to work on in the cloud
-    const storageRef = ref(storage, filePath);
-    // converting file object (just has the metadata and reference that we got from DocumentPicker)
-    // to blob, which can actually hold binary data (the actual file)
-    const fileBlob = await fetch(file.uri).then((res) => res.blob());
-
-    const uploadTask = uploadBytesResumable(storageRef, fileBlob);
-
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        const progress =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setProgress(progress);
-      },
-      (error) => {
-        setUploading(false);
-        Alert.alert("Uploading failed", error.message);
-      },
-      async () => {
-        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-        const metadata = await getMetadata(file.uri);
-
-        console.log("Metadata", metadata);
-
-        try {
-          console.log("User ID:", userID);
-          console.log("Firestore Path: users/" + userID + "/uploads");
-
-          await addDoc(collection(db, `users/${userID}/uploads`), {
-            name: file.name,
-            path: filePath,
-            uri: downloadURL,
-            uploadedAt: new Date(),
-            type: file.mimeType,
-            size: file.size,
-            metadata: metadata || { title: "Unknown", author: "Unknown" },
-          });
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const uploadProgress =
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          setProgress(uploadProgress);
+        },
+        (error) => {
           setUploading(false);
-          setFile(null);
-          setProgress(0);
-          Alert.alert("File uploaded successfully");
-        } catch (error) {
-          setUploading(false);
-          Alert.alert("Error saving metadata", error.message);
-          console.log("Error saving to firestore", error);
+          Alert.alert("Upload failed", error.message);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+          try {
+            const metadata = await getMetadata(file.uri);
+            console.log("Got metadata:", metadata);
+
+            let coverUrl = await getEpubCover(file.uri);
+            if (!coverUrl) {
+              console.log("Trying alternative image extraction...");
+              coverUrl = await extractImagesFromEpub(file.uri);
+            }
+            console.log("Final cover URL:", coverUrl ? "Found" : "Not found");
+
+            await addDoc(collection(db, `users/${userID}/uploads`), {
+              name: file.name,
+              path: filePath,
+              uri: downloadURL,
+              uploadedAt: new Date(),
+              type: file.mimeType,
+              size: file.size,
+              coverUrl: coverUrl,
+              metadata: metadata || { title: "Unknown", creator: "Unknown" },
+            });
+
+            setUploading(false);
+            setProgress(0);
+            setFile(null);
+
+            setTimeout(() => {
+              if (onUploadSuccess) {
+                console.log("Triggering upload success callback");
+                onUploadSuccess();
+              }
+            }, 500);
+
+            Alert.alert("Success", "File uploaded successfully");
+          } catch (error) {
+            setUploading(false);
+            Alert.alert("Failed to save metadata", error.message);
+          }
         }
-      }
-    );
+      );
+    } catch (error) {
+      setUploading(false);
+      Alert.alert("Error preparing upload", error.message);
+    }
   };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Upload Your File</Text>
-
-      <TouchableOpacity style={styles.button} onPress={handleFileSelect}>
-        <Text style={styles.buttonText}>
-          {file ? `Selected: ${file.name}` : "Select a File"}
-        </Text>
-      </TouchableOpacity>
-
-      {file && !uploading && (
-        <TouchableOpacity style={styles.button} onPress={uploadFile}>
-          <Text style={styles.buttonText}>Upload File</Text>
-        </TouchableOpacity>
-      )}
-
-      {uploading && (
-        <View style={styles.progressContainer}>
-          <ActivityIndicator size="large" color="#007bff" />
-          <Text style={styles.progressText}>
-            Uploading... {progress.toFixed(2)}%
-          </Text>
-          <ProgressBarAndroid
-            styleAttr="Horizontal"
-            indeterminate={false}
-            progress={progress / 100}
-            color="#007bff"
+      <TouchableOpacity
+        style={styles.uploadButton}
+        onPress={file ? uploadFile : handleFileSelect}
+        disabled={uploading}
+      >
+        {uploading ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Icon
+            name={file ? "cloud-upload-outline" : "document-outline"}
+            size={24}
+            color="#FFFFFF"
           />
-        </View>
+        )}
+      </TouchableOpacity>
+      {file && (
+        <Text style={styles.fileNameText} numberOfLines={1}>
+          {file.name}
+        </Text>
       )}
-
-      {!file && !uploading && (
-        <Text style={styles.placeholderText}>No file selected</Text>
+      {uploading && (
+        <Text style={styles.progressText}>
+          Uploading... {progress.toFixed(0)}%
+        </Text>
       )}
     </View>
   );
@@ -179,44 +267,27 @@ const Upload = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    alignItems: "center",
+    marginVertical: 10,
+  },
+  uploadButton: {
+    backgroundColor: "#007bff",
+    borderRadius: 20,
+    padding: 10,
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "#f8f9fa",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: "#007bff",
-    padding: 12,
-    borderRadius: 8,
-    marginVertical: 10,
-    width: "80%",
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  progressContainer: {
-    marginVertical: 20,
-    alignItems: "center",
-    width: "80%",
+    elevation: 5,
   },
   progressText: {
-    fontSize: 16,
-    marginVertical: 8,
-    color: "#333",
+    marginTop: 10,
+    color: "#007bff",
+    fontSize: 14,
   },
-  placeholderText: {
-    marginTop: 20,
-    fontSize: 16,
-    color: "#888",
+  fileNameText: {
+    marginTop: 10,
+    color: "#007bff",
+    fontSize: 12,
+    maxWidth: 200,
   },
 });
 

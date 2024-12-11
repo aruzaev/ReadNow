@@ -31,19 +31,18 @@ export const UserProvider = ({ children }) => {
   const login = async () => {
     try {
       await GoogleSignin.hasPlayServices();
-      const user = await GoogleSignin.signIn();
-      console.log("User Info:", user);
-      console.log("Profile picture url: ", user.data.user.photo);
-
-      const { idToken } = user.data;
-      console.log(idToken);
+      const userInfo = await GoogleSignin.signIn();
+      const { idToken } = userInfo;
 
       const credential = GoogleAuthProvider.credential(idToken);
-      const firebaseUser = await signInWithCredential(auth, credential);
+      const result = await signInWithCredential(auth, credential);
 
-      console.log("Firebase User:", firebaseUser);
+      // Check if this is a new user
+      if (result._tokenResponse?.isNewUser) {
+        await initializeUserData(result.user.uid);
+      }
 
-      setUser(firebaseUser);
+      setUser(result.user);
       setLastLogin(Date.now());
     } catch (error) {
       console.error("Login error:", error);
