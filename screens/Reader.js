@@ -70,7 +70,6 @@ const ReaderScreen = ({ route }) => {
               const newHighlight = { cfiRange, text };
               setHighlights([...highlights, newHighlight]);
 
-              // Add the highlight to the reader
               if (addAnnotation) {
                 addAnnotation({
                   cfiRange,

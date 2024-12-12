@@ -60,12 +60,12 @@ const Upload = ({ onUploadSuccess }) => {
       const book = ePub(fileUri);
       await book.ready;
 
-      // Method 1: Try getting cover from resources
+      // get cover from resources
       try {
         const cover = await book.loaded.cover;
         if (cover) {
           const coverUrl = await book.archive.createUrl(cover, {
-            base64: true,
+            base64: true, // book.loaded.cover convert to url
           });
           return coverUrl;
         }
@@ -73,7 +73,7 @@ const Upload = ({ onUploadSuccess }) => {
         console.log("Method 1 failed:", e);
       }
 
-      // Method 2: Try getting cover from spine
+      // from spine toc
       try {
         const spine = await book.loaded.spine;
         const coverItem = spine.find(
@@ -92,7 +92,7 @@ const Upload = ({ onUploadSuccess }) => {
         console.log("Method 2 failed:", e);
       }
 
-      // Method 3: Try getting first image from resources
+      // first image of the book
       try {
         const resources = await book.loaded.resources;
         const firstImage = resources.find((item) =>
@@ -120,19 +120,22 @@ const Upload = ({ onUploadSuccess }) => {
     try {
       const book = ePub(fileUri);
       await book.ready;
-
-      // Get all sections
       const sections = await book.loaded.spine;
 
-      // Find first image in any section
       for (let section of sections) {
         try {
           const content = await book.archive.getText(section.href);
-          const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
-          if (imgMatch && imgMatch[1]) {
-            const imageUrl = await book.archive.createUrl(imgMatch[1], {
-              base64: true,
-            });
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(content, "text/html");
+          const imgElement = doc.querySelector("img");
+
+          if (imgElement && imgElement.getAttribute("src")) {
+            const imageUrl = await book.archive.createUrl(
+              imgElement.getAttribute("src"),
+              {
+                base64: true,
+              }
+            );
             return imageUrl;
           }
         } catch (e) {

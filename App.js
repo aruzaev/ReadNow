@@ -9,7 +9,6 @@ import CustomDrawer from "./CustomDrawer";
 import ReadingList from "./screens/ReadingList";
 import Account from "./screens/Account";
 import Upload from "./screens/Upload";
-import TestDocumentPicker from "./screens/TestDocumentPicker";
 import ReaderScreen from "./screens/Reader";
 import { View, ActivityIndicator, Text } from "react-native";
 import { ReaderProvider } from "@epubjs-react-native/core";

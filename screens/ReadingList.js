@@ -1,4 +1,3 @@
-// ReadingList.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -37,7 +36,6 @@ const ReadingList = ({ navigation }) => {
   const [showModal, setShowModal] = useState(false);
 
   const fetchBooks = async (forceRefresh = false) => {
-    // Don't return early if it's a force refresh
     if (!forceRefresh && (loading || !hasMore)) return;
 
     setLoading(true);
@@ -54,7 +52,6 @@ const ReadingList = ({ navigation }) => {
       const userID = currentUser.uid;
       const bookCollection = collection(db, `users/${userID}/uploads`);
 
-      // For initial load or refresh, don't use startAfter
       let bookQuery;
       if (forceRefresh || !lastVisible) {
         bookQuery = query(
@@ -134,19 +131,16 @@ const ReadingList = ({ navigation }) => {
 
       const userID = currentUser.uid;
 
-      // Delete the metadata from Firestore first
       const bookDocRef = doc(db, `users/${userID}/uploads/${selectedBook.id}`);
       await deleteDoc(bookDocRef);
 
       try {
-        // Try to delete the file from Storage, but don't fail if it doesn't exist
         const storageRef = ref(storage, selectedBook.path);
         await deleteObject(storageRef);
       } catch (error) {
         console.log("Storage file may not exist:", error);
       }
 
-      // Update the local state
       setBooks((prevBooks) =>
         prevBooks.filter((book) => book.id !== selectedBook.id)
       );

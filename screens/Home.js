@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   ScrollView,
   Linking,
+  Animated,
+  Easing,
 } from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { UserContext } from "../UserContext";
@@ -29,6 +31,13 @@ const Home = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [selectedBook, setSelectedBook] = useState(null);
   const [showBookModal, setShowBookModal] = useState(false);
+
+  const pressAnims = useRef(
+    recentBooks.map(() => ({
+      scale: new Animated.Value(1),
+      translateY: new Animated.Value(0),
+    }))
+  ).current;
 
   const fetchBooks = async () => {
     setLoading(true);
@@ -122,6 +131,16 @@ const Home = ({ navigation }) => {
     return unsubscribe;
   }, [navigation]);
 
+  useEffect(() => {
+    pressAnims.length = 0;
+    recentBooks.forEach(() => {
+      pressAnims.push({
+        scale: new Animated.Value(1),
+        translateY: new Animated.Value(0),
+      });
+    });
+  }, [recentBooks]);
+
   const BookDetailsModal = () => (
     <Modal
       isVisible={showBookModal}
@@ -177,34 +196,101 @@ const Home = ({ navigation }) => {
     </Modal>
   );
 
-  const renderBookItem = ({ item }) => (
+  const renderBookItem = ({ item, index }) => {
+    const animatePress = () => {
+      Animated.parallel([
+        Animated.timing(pressAnims[index].scale, {
+          toValue: 0.95,
+          duration: 150,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.quad),
+        }),
+        Animated.timing(pressAnims[index].translateY, {
+          toValue: -10,
+          duration: 150,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.quad),
+        }),
+      ]).start(() => {
+        Animated.parallel([
+          Animated.spring(pressAnims[index].scale, {
+            toValue: 1,
+            friction: 3,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+          Animated.spring(pressAnims[index].translateY, {
+            toValue: 0,
+            friction: 3,
+            tension: 40,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          console.log("Navigating to reader with book:", item);
+          navigation.navigate("Reader", { book: item });
+        });
+      });
+    };
+
+    return (
+      <TouchableOpacity style={styles.bookItem} onPress={animatePress}>
+        <Animated.View
+          style={[
+            {
+              transform: [
+                { scale: pressAnims[index].scale },
+                { translateY: pressAnims[index].translateY },
+              ],
+            },
+          ]}
+        >
+          {item.coverUrl ? (
+            <Image
+              source={{ uri: item.coverUrl }}
+              style={styles.bookCover}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.bookCover, styles.bookCoverFallback]}>
+              <Text style={styles.bookCoverText}>
+                {item.metadata?.title?.[0] || item.name?.[0] || "📚"}
+              </Text>
+            </View>
+          )}
+          <View style={styles.bookInfo}>
+            <Text style={styles.bookTitle} numberOfLines={2}>
+              {item.metadata?.title || item.name || "Untitled"}
+            </Text>
+            <Text style={styles.bookAuthor} numberOfLines={1}>
+              {item.metadata?.creator || "Unknown Author"}
+            </Text>
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderCarouselItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.bookItem}
+      style={styles.carouselItem}
       onPress={() => {
-        console.log("Navigating to reader with book:", item);
-        navigation.navigate("Reader", { book: item });
+        setSelectedBook(item);
+        setShowBookModal(true);
       }}
     >
-      {item.coverUrl ? (
-        <Image
-          source={{ uri: item.coverUrl }}
-          style={styles.bookCover}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={[styles.bookCover, styles.bookCoverFallback]}>
-          <Text style={styles.bookCoverText}>
-            {item.metadata?.title?.[0] || item.name?.[0] || "📚"}
-          </Text>
-        </View>
-      )}
-      <View style={styles.bookInfo}>
-        <Text style={styles.bookTitle} numberOfLines={2}>
-          {item.metadata?.title || item.name || "Untitled"}
+      <Image
+        source={{ uri: item.book_image }}
+        style={styles.carouselCover}
+        resizeMode="cover"
+      />
+      <View style={styles.carouselInfo}>
+        <Text style={styles.carouselTitle} numberOfLines={2}>
+          {item.title}
         </Text>
-        <Text style={styles.bookAuthor} numberOfLines={1}>
-          {item.metadata?.creator || "Unknown Author"}
+        <Text style={styles.carouselAuthor} numberOfLines={1}>
+          {item.author}
         </Text>
+        <Text style={styles.carouselRank}>#{item.rank} on NYT Bestsellers</Text>
       </View>
     </TouchableOpacity>
   );
@@ -220,84 +306,71 @@ const Home = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.userInfo}>
-          <Text style={styles.greeting}>
-            Welcome, {auth.currentUser?.displayName || "User"}
-          </Text>
-          <Text style={styles.lastLogin}>
-            Last Login:{" "}
-            {lastLogin ? new Date(lastLogin).toLocaleString() : "N/A"}
-          </Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.header}>
+          <View style={styles.userInfo}>
+            <Text style={styles.greeting}>
+              Welcome, {auth.currentUser?.displayName || "User"}
+            </Text>
+            <Text style={styles.lastLogin}>
+              Last Login:{" "}
+              {lastLogin ? new Date(lastLogin).toLocaleString() : "N/A"}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </TouchableOpacity>
-      </View>
 
-      {error && (
-        <Text style={styles.errorText}>Error loading books: {error}</Text>
-      )}
-
-      <View style={styles.uploadSection}>
-        <Upload onUploadSuccess={fetchBooks} />
-      </View>
-
-      <View style={styles.recentSection}>
-        <Text style={styles.sectionTitle}>Recently Added Books</Text>
-        {recentBooks.length > 0 ? (
-          <FlatList
-            data={recentBooks}
-            renderItem={renderBookItem}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.bookList}
-          />
-        ) : (
-          <Text style={styles.noBooksText}>No books added yet</Text>
+        {error && (
+          <Text style={styles.errorText}>Error loading books: {error}</Text>
         )}
-      </View>
 
-      <View style={styles.weeklySection}>
-        <Text style={styles.sectionTitle}>NYT Bestsellers</Text>
-        {nytBooks.length > 0 ? (
-          <Carousel
-            width={400}
-            height={400}
-            data={nytBooks}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={styles.carouselItem}
-                onPress={() => {
-                  setSelectedBook(item);
-                  setShowBookModal(true);
-                }}
-              >
-                <Image
-                  source={{ uri: item.book_image }}
-                  style={styles.carouselCover}
-                  resizeMode="cover"
-                />
-                <View style={styles.carouselInfo}>
-                  <Text style={styles.carouselTitle} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.carouselAuthor} numberOfLines={1}>
-                    {item.author}
-                  </Text>
-                  <Text style={styles.carouselRank}>
-                    #{item.rank} on NYT Bestsellers
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-            loop={true}
-          />
-        ) : (
-          <Text style={styles.noBooksText}>Loading bestsellers...</Text>
-        )}
-      </View>
+        <View style={styles.uploadSection}>
+          <Upload onUploadSuccess={fetchBooks} />
+        </View>
+
+        <View style={styles.recentSection}>
+          <Text style={styles.sectionTitle}>Recently Added Books</Text>
+          {recentBooks.length > 0 ? (
+            <FlatList
+              data={recentBooks}
+              renderItem={renderBookItem}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.bookList}
+            />
+          ) : (
+            <Text style={styles.noBooksText}>No books added yet</Text>
+          )}
+        </View>
+
+        <View style={styles.weeklySection}>
+          <Text style={styles.sectionTitle}>NYT Bestsellers</Text>
+          {nytBooks.length > 0 ? (
+            <Carousel
+              width={400}
+              height={300}
+              data={nytBooks}
+              renderItem={renderCarouselItem}
+              loop={true}
+              style={styles.carousel}
+              defaultIndex={0}
+              modeConfig={{
+                snapDirection: "left",
+                stackInterval: 15,
+              }}
+              mode="parallax"
+            />
+          ) : (
+            <Text style={styles.noBooksText}>Loading bestsellers...</Text>
+          )}
+        </View>
+      </ScrollView>
 
       <TouchableOpacity
         style={styles.readingListLink}
@@ -315,7 +388,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
-    padding: 20,
   },
   header: {
     flexDirection: "row",
@@ -407,13 +479,13 @@ const styles = StyleSheet.create({
   },
   carouselItem: {
     alignItems: "center",
-    padding: 10,
+    padding: 5,
   },
   carouselCover: {
-    width: 200,
-    height: 280,
+    width: 180,
+    height: 250,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 5,
   },
   carouselInfo: {
     width: "100%",
@@ -443,12 +515,16 @@ const styles = StyleSheet.create({
     marginVertical: 20,
   },
   readingListLink: {
-    marginTop: "auto",
+    position: "absolute",
+    bottom: 30,
+    left: 20,
+    right: 20,
     paddingVertical: 12,
     paddingHorizontal: 24,
     backgroundColor: "#1E90FF",
     borderRadius: 8,
-    alignSelf: "center",
+    alignItems: "center",
+    zIndex: 1,
   },
   readingListText: {
     fontSize: 16,
@@ -528,6 +604,15 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  carousel: {
+    marginBottom: 20,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 150,
   },
 });
 
