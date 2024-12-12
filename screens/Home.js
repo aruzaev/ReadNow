@@ -7,22 +7,28 @@ import {
   Image,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
+  Linking,
 } from "react-native";
 import Carousel from "react-native-reanimated-carousel";
 import { UserContext } from "../UserContext";
 import { db, auth } from "../firebase/firebaseConfig";
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import Modal from "react-native-modal";
 import Upload from "./Upload";
+import Icon from "react-native-vector-icons/Ionicons";
 
 const RECENT_BOOKS_LIMIT = 5;
-const WEEKLY_BOOKS_LIMIT = 5;
+const NYT_BOOKS_URL = `https://api.nytimes.com/svc/books/v3/lists/current/hardcover-fiction.json?api-key=${process.env.NYT_API_KEY}`;
 
 const Home = ({ navigation }) => {
   const { user, lastLogin, logout } = useContext(UserContext);
   const [recentBooks, setRecentBooks] = useState([]);
-  const [weeklyBooks, setWeeklyBooks] = useState([]);
+  const [nytBooks, setNytBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [showBookModal, setShowBookModal] = useState(false);
 
   const fetchBooks = async () => {
     setLoading(true);
@@ -65,12 +71,23 @@ const Home = ({ navigation }) => {
 
       console.log("Processed recent books:", recentData);
       setRecentBooks(recentData);
-      setWeeklyBooks(recentData);
     } catch (error) {
       console.error("Error fetching books:", error);
       setError(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchNYTBooks = async () => {
+    try {
+      const response = await fetch(NYT_BOOKS_URL);
+      const data = await response.json();
+      if (data.results && data.results.books) {
+        setNytBooks(data.results.books);
+      }
+    } catch (error) {
+      console.error("Error fetching NYT books:", error);
     }
   };
 
@@ -80,12 +97,14 @@ const Home = ({ navigation }) => {
       console.log("Auth state changed. Current user:", user?.uid);
       if (user) {
         fetchBooks();
+        fetchNYTBooks();
       }
     });
 
     if (auth.currentUser) {
       console.log("User already logged in, fetching books");
       fetchBooks();
+      fetchNYTBooks();
     }
 
     return () => {
@@ -102,6 +121,61 @@ const Home = ({ navigation }) => {
 
     return unsubscribe;
   }, [navigation]);
+
+  const BookDetailsModal = () => (
+    <Modal
+      isVisible={showBookModal}
+      onBackdropPress={() => setShowBookModal(false)}
+      animationIn="slideInUp"
+      animationOut="slideOutDown"
+      style={styles.modal}
+    >
+      {selectedBook && (
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{selectedBook.title}</Text>
+            <TouchableOpacity onPress={() => setShowBookModal(false)}>
+              <Icon name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView>
+            <Image
+              source={{ uri: selectedBook.book_image }}
+              style={styles.modalBookCover}
+              resizeMode="contain"
+            />
+
+            <Text style={styles.modalAuthor}>By {selectedBook.author}</Text>
+
+            <View style={styles.modalStats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Rank</Text>
+                <Text style={styles.statValue}>#{selectedBook.rank}</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Weeks on List</Text>
+                <Text style={styles.statValue}>
+                  {selectedBook.weeks_on_list}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.modalDescription}>
+              {selectedBook.description}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.buyButton}
+              onPress={() => Linking.openURL(selectedBook.amazon_product_url)}
+            >
+              <Text style={styles.buyButtonText}>Buy on Amazon</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      )}
+    </Modal>
+  );
 
   const renderBookItem = ({ item }) => (
     <TouchableOpacity
@@ -186,46 +260,42 @@ const Home = ({ navigation }) => {
       </View>
 
       <View style={styles.weeklySection}>
-        <Text style={styles.sectionTitle}>My Library Highlights</Text>
-        {weeklyBooks.length > 0 ? (
+        <Text style={styles.sectionTitle}>NYT Bestsellers</Text>
+        {nytBooks.length > 0 ? (
           <Carousel
             width={400}
-            height={250}
-            data={weeklyBooks}
+            height={400}
+            data={nytBooks}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.carouselItem}
-                onPress={() => navigation.navigate("Reader", { book: item })}
+                onPress={() => {
+                  setSelectedBook(item);
+                  setShowBookModal(true);
+                }}
               >
-                {item.coverUrl ? (
-                  <Image
-                    source={{ uri: item.coverUrl }}
-                    style={styles.carouselCover}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View
-                    style={[styles.carouselCover, styles.bookCoverFallback]}
-                  >
-                    <Text style={styles.carouselCoverText}>
-                      {item.metadata?.title?.[0] || item.name?.[0] || "📚"}
-                    </Text>
-                  </View>
-                )}
+                <Image
+                  source={{ uri: item.book_image }}
+                  style={styles.carouselCover}
+                  resizeMode="cover"
+                />
                 <View style={styles.carouselInfo}>
                   <Text style={styles.carouselTitle} numberOfLines={2}>
-                    {item.metadata?.title || item.name || "Untitled"}
+                    {item.title}
                   </Text>
                   <Text style={styles.carouselAuthor} numberOfLines={1}>
-                    {item.metadata?.creator || "Unknown Author"}
+                    {item.author}
+                  </Text>
+                  <Text style={styles.carouselRank}>
+                    #{item.rank} on NYT Bestsellers
                   </Text>
                 </View>
               </TouchableOpacity>
             )}
-            loop={weeklyBooks.length > 1}
+            loop={true}
           />
         ) : (
-          <Text style={styles.noBooksText}>No books available</Text>
+          <Text style={styles.noBooksText}>Loading bestsellers...</Text>
         )}
       </View>
 
@@ -235,6 +305,8 @@ const Home = ({ navigation }) => {
       >
         <Text style={styles.readingListText}>Go to My Reading List</Text>
       </TouchableOpacity>
+
+      <BookDetailsModal />
     </View>
   );
 };
@@ -343,10 +415,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
   },
-  carouselCoverText: {
-    fontSize: 48,
-    color: "#FFFFFF",
-  },
   carouselInfo: {
     width: "100%",
     alignItems: "center",
@@ -362,6 +430,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#BBBBBB",
     textAlign: "center",
+  },
+  carouselRank: {
+    color: "#007AFF",
+    fontSize: 14,
+    marginTop: 4,
   },
   noBooksText: {
     color: "#BBBBBB",
@@ -380,6 +453,80 @@ const styles = StyleSheet.create({
   readingListText: {
     fontSize: 16,
     color: "#FFFFFF",
+    fontWeight: "bold",
+  },
+  modal: {
+    margin: 0,
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#1E1E1E",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "bold",
+    flex: 1,
+    marginRight: 10,
+  },
+  modalBookCover: {
+    width: "100%",
+    height: 300,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  modalAuthor: {
+    color: "#BBBBBB",
+    fontSize: 18,
+    marginBottom: 20,
+  },
+  modalStats: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: "#2A2A2A",
+    borderRadius: 10,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statLabel: {
+    color: "#BBBBBB",
+    fontSize: 14,
+    marginBottom: 5,
+  },
+  statValue: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  modalDescription: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  buyButton: {
+    backgroundColor: "#007AFF",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  buyButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
     fontWeight: "bold",
   },
 });
